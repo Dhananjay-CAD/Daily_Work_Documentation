@@ -1,0 +1,537 @@
+<title>Daily Work Report Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Antic&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a drawing-sheet title block on top, notes-in on the left, formal report-out on the right, saved reports underneath. */
+:root {
+  --bg: #f8f7f4;
+  --surface: #ffffff;
+  --sunk: #efede8;
+  --ink: #1a1f2e;
+  --ink-soft: #5f6673;
+  --line: #d9d6cf;
+  --accent: #7c9082;
+  --accent-ink: #ffffff;
+  --accent-wash: #bfc9bb;
+  --warn: #c73e3a;
+  --warn-wash: #f7e4e2;
+  --ok: #4f6e58;
+  --radius: 0.35rem;
+  --font-display: Signifier, Georgia, serif;
+  --font-ui: Antic, ui-sans-serif, system-ui, sans-serif;
+  --font-doc: Signifier, Georgia, serif;
+  --font-mono: "JetBrains Mono", "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a0a0a; --surface: #121212; --sunk: #1a1a1a; --ink: #f5f5f5; --ink-soft: #a0a0a0;
+    --line: #2a2a2a; --accent: #7c9082; --accent-ink: #000000; --accent-wash: #36443a;
+    --warn: #ef4444; --warn-wash: #2f1717; --ok: #8bb59a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0a0a0a; --surface: #121212; --sunk: #1a1a1a; --ink: #f5f5f5; --ink-soft: #a0a0a0;
+  --line: #2a2a2a; --accent: #7c9082; --accent-ink: #000000; --accent-wash: #36443a;
+  --warn: #ef4444; --warn-wash: #2f1717; --ok: #8bb59a; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.sheet { max-width: 1180px; margin: 0 auto; display: grid; gap: 20px; }
+
+/* Title block */
+.titleblock {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  border: 1.5px solid var(--ink);
+  background: var(--surface);
+}
+.titleblock > div { padding: 12px 16px; border-left: 1.5px solid var(--ink); min-width: 0; }
+.titleblock > div:first-child { border-left: 0; }
+.tb-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); font-weight: 500; }
+.tb-name { font-family: var(--font-display); font-weight: 700; font-size: 34px; line-height: 1.05; letter-spacing: 0.01em; text-wrap: balance; }
+.tb-value { font-family: var(--font-mono); font-size: 14px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tb-sub { color: var(--ink-soft); font-size: 13px; margin-top: 2px; }
+
+/* Summary strip */
+.strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--line); padding: 10px 14px; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.stat b { font-family: var(--font-display); font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+.stat.attn b { color: var(--warn); }
+
+/* Two panes */
+.panes { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 20px; align-items: start; }
+.pane { background: var(--surface); border: 1px solid var(--line); min-width: 0; }
+.pane-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 18px; border-bottom: 1px solid var(--line); background: var(--sunk); }
+.pane-head h2 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: 0.02em; text-transform: uppercase; }
+.pane-body { padding: 18px; display: grid; gap: 16px; }
+
+.field { display: grid; gap: 6px; min-width: 0; }
+.field label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; color: var(--ink-soft); }
+.field .hint { font-size: 12.5px; color: var(--ink-soft); }
+input[type="text"], input[type="date"], textarea {
+  width: 100%; min-width: 0; font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 11px;
+}
+textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
+.row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.btn { font: inherit; font-weight: 600; font-size: 14px; border-radius: var(--radius); padding: 9px 16px; cursor: pointer; border: 1px solid var(--ink); background: transparent; color: var(--ink); }
+.btn:hover { background: var(--sunk); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.small { padding: 5px 10px; font-size: 13px; }
+.btn[disabled] { opacity: 0.55; cursor: progress; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.status { font-size: 13.5px; color: var(--ink-soft); min-height: 20px; }
+.status.err { color: var(--warn); }
+
+/* Report */
+.tag { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; padding: 3px 8px; border: 1px solid var(--line); color: var(--ink-soft); }
+.tag.example { color: var(--warn); border-color: var(--warn); background: var(--warn-wash); }
+.tag.live { color: var(--ok); border-color: var(--ok); }
+.report { padding: 24px 28px 26px; display: grid; gap: 22px; }
+.rep-meta { display: flex; flex-wrap: wrap; gap: 6px 22px; font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-soft); padding-bottom: 12px; border-bottom: 1.5px solid var(--ink); }
+.rep-meta b { color: var(--ink); font-weight: 500; }
+.rep-section h3 { margin: 0 0 8px; font-family: var(--font-display); font-weight: 700; font-size: 24px; letter-spacing: 0.02em; }
+.rep-text { font-family: var(--font-doc); font-size: 17px; line-height: 1.62; max-width: 68ch; }
+.rep-text p { margin: 0 0 0.85em; }
+.rep-text p:last-child { margin-bottom: 0; }
+.rep-text:focus-visible { outline-offset: 6px; }
+.confirm { border: 1px solid var(--warn); background: var(--warn-wash); padding: 12px 16px; }
+.confirm h4 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--warn); }
+.confirm ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
+.edit-note { font-size: 12.5px; color: var(--ink-soft); }
+
+/* Log */
+.log { list-style: none; margin: 0; padding: 0; }
+.log li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 11px 18px; border-top: 1px solid var(--line); }
+.log li:first-child { border-top: 0; }
+.log .d { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.log .t { min-width: 0; overflow-wrap: anywhere; }
+.log .t small { display: block; color: var(--ink-soft); font-size: 12.5px; }
+.log .ops { display: flex; gap: 8px; }
+.empty { padding: 22px 18px; color: var(--ink-soft); }
+
+/* Folder shelf: the glass folder sits on a dotted desk beside the list */
+.shelf { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: stretch; }
+.shelf-desk {
+  padding: 22px 28px 30px;
+  border-right: 1px solid var(--line);
+  background-image: radial-gradient(var(--line) 1.1px, transparent 1.4px);
+  background-size: 22px 22px;
+  min-width: 0;
+}
+.shelf-folder { width: 340px; max-width: 100%; }
+@media (max-width: 880px) {
+  .shelf { grid-template-columns: minmax(0, 1fr); }
+  .shelf-desk { border-right: 0; border-bottom: 1px solid var(--line); display: flex; justify-content: center; padding-inline: 16px; }
+}
+
+@media (max-width: 880px) {
+  .panes { grid-template-columns: minmax(0, 1fr); }
+  .titleblock { grid-template-columns: minmax(0, 1fr); }
+  .titleblock > div { border-left: 0; border-top: 1.5px solid var(--ink); }
+  .titleblock > div:first-child { border-top: 0; }
+  .report { padding: 18px; }
+}
+@media (max-width: 520px) {
+  .strip { grid-template-columns: minmax(0, 1fr); }
+  .row2 { grid-template-columns: minmax(0, 1fr); }
+  .log li { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .tb-name { font-size: 29px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .btn { transition: background 0.15s, filter 0.15s; }
+}
+</style>
+
+<main class="sheet">
+  <header class="titleblock">
+    <div>
+      <div class="tb-label">Document</div>
+      <div class="tb-name">Daily Work Report Desk</div>
+      <div class="tb-sub">Rough notes in, a clear professional report out.</div>
+    </div>
+    <div>
+      <div class="tb-label">Report no.</div>
+      <div class="tb-value" id="tbNo">DWR-00000000</div>
+    </div>
+    <div>
+      <div class="tb-label">Report date</div>
+      <div class="tb-value" id="tbDate">Not set</div>
+    </div>
+  </header>
+
+  <section class="strip" aria-label="Summary">
+    <div class="stat"><span>Saved reports</span><b id="stSaved">0</b></div>
+    <div class="stat"><span>Last 7 days</span><b id="stWeek">0</b></div>
+    <div class="stat attn"><span>Points to confirm</span><b id="stOpen">0</b></div>
+  </section>
+
+  <div class="panes">
+    <section class="pane" aria-labelledby="hNotes">
+      <div class="pane-head"><h2 id="hNotes">Your notes</h2><span class="tag example" id="notesTag">Example notes</span></div>
+      <form class="pane-body" id="form">
+        <div class="row2">
+          <div class="field"><label for="fDate">Date</label><input type="date" id="fDate"></div>
+          <div class="field"><label for="fTitle">Task name (optional)</label><input type="text" id="fTitle" autocomplete="off"></div>
+        </div>
+        <div class="field">
+          <label for="fTask">Task Details</label>
+          <textarea id="fTask"></textarea>
+          <span class="hint">Write your rough notes about the assigned task. Spelling and grammar are corrected for you.</span>
+        </div>
+        <div class="field">
+          <label for="fDone">Work Progress</label>
+          <textarea id="fDone"></textarea>
+          <span class="hint">Write only what you actually did. Add measurements, test results and issues if you have them.</span>
+        </div>
+        <div class="field">
+          <label for="fNext">Pending or next steps (optional)</label>
+          <textarea id="fNext" style="min-height:70px"></textarea>
+        </div>
+        <div class="actions">
+          <button class="btn primary" type="submit" id="bRewrite">Rewrite as report</button>
+          <button class="btn" type="button" id="bStop" hidden>Stop</button>
+          <button class="btn" type="button" id="bPrompt">Copy as prompt</button>
+          <button class="btn" type="button" id="bClear">Clear notes</button>
+        </div>
+        <div class="status" id="status" role="status" aria-live="polite"></div>
+      </form>
+    </section>
+
+    <section class="pane" aria-labelledby="hReport">
+      <div class="pane-head">
+        <h2 id="hReport">Report</h2>
+        <div class="actions"><span class="tag example" id="repTag">Example</span></div>
+      </div>
+      <article class="report" id="report">
+        <div class="rep-meta"><span>Date <b id="rMetaDate">Not set</b></span><span>Task <b id="rMetaTitle">Not set</b></span></div>
+        <div class="rep-section">
+          <h3>Task Details</h3>
+          <div class="rep-text" id="rTask" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="Task Details text"></div>
+        </div>
+        <div class="rep-section">
+          <h3>Work Progress</h3>
+          <div class="rep-text" id="rWork" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="Work Progress text"></div>
+        </div>
+        <div class="confirm" id="rConfirm" hidden>
+          <h4>To confirm before you send</h4>
+          <ul id="rConfirmList"></ul>
+        </div>
+        <div class="edit-note">You can click into either section and edit the wording before copying.</div>
+        <div class="actions">
+          <button class="btn primary" type="button" id="bCopy">Copy report</button>
+          <button class="btn" type="button" id="bSave">Save to log</button>
+          <span class="status" id="repStatus" role="status" aria-live="polite"></span>
+        </div>
+      </article>
+    </section>
+  </div>
+
+  <section class="pane" aria-labelledby="hLog">
+    <div class="pane-head"><h2 id="hLog">Saved reports</h2><span class="tag">Stored in this browser</span></div>
+    <div class="shelf">
+      <div class="shelf-desk"><div class="shelf-folder" id="folderHost"></div></div>
+      <ul class="log" id="log"></ul>
+    </div>
+  </section>
+</main>
+
+<script src="gf.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var LOG_KEY = "dwr-log-v1";
+
+  var EXAMPLE = {
+    title: "Gearbox housing assembly",
+    task: "make cad of gearbox housing, cover and shaft support and assemble them to check the fit before drawings",
+    done: "modelled housing, cover and shaft support. assembled all three. found interference between shaft and bearing seat. drawings not started",
+    next: "fix the interference, then start drawings",
+    taskDetails: "The assigned task was to prepare the CAD models of the gearbox housing, the housing cover and the shaft support, and to assemble them in order to verify the fit between the mating parts. The objective was to confirm that the components fit together correctly before the detailed drawings are prepared.",
+    workProgress: "The gearbox housing, the housing cover and the shaft support were modelled, and the three parts were then brought together in an assembly. During the assembly check, an interference was identified between the shaft and the bearing seat.\n\nThe preparation of the drawings has not been started. The interference needs to be corrected, after which the drawing work can begin.",
+    toConfirm: ["Which feature or dimension causes the shaft and bearing seat interference, and by how much?", "Which CAD software was used for the modelling and assembly?"]
+  };
+
+  var current = null;   // the report on screen
+  var isExample = true;
+  var ctl = null;
+
+  function today() { try { return new Date().toLocaleDateString("en-CA"); } catch (e) { return ""; } }
+  function fmtDate(iso) {
+    if (!iso) return "Not set";
+    var p = iso.split("-"); if (p.length !== 3) return iso;
+    var m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+p[1] - 1];
+    return p[2] + " " + m + " " + p[0];
+  }
+  function reportNo(iso) { return "DWR-" + (iso ? iso.replace(/-/g, "") : "00000000"); }
+
+  function clean(s) {
+    return String(s || "").replace(/\s*[—–]\s*/g, ", ").replace(/\s-\s/g, ", ").replace(/(\w)-(\w)/g, "$1 $2").replace(/-/g, " ").replace(/ ,/g, ",").replace(/[ \t]{2,}/g, " ");
+  }
+  function paras(el, text) {
+    el.textContent = "";
+    String(text || "").split(/\n{2,}/).forEach(function (t) {
+      t = t.trim(); if (!t) return;
+      var p = document.createElement("p"); p.textContent = t; el.appendChild(p);
+    });
+  }
+  function readText(el) {
+    return Array.prototype.map.call(el.querySelectorAll("p"), function (p) { return p.textContent.trim(); })
+      .filter(Boolean).join("\n\n") || el.textContent.trim();
+  }
+
+  function showReport(r) {
+    current = r;
+    $("rMetaDate").textContent = fmtDate(r.date);
+    $("rMetaTitle").textContent = r.title || "Not named";
+    paras($("rTask"), r.taskDetails);
+    paras($("rWork"), r.workProgress);
+    var list = $("rConfirmList"); list.textContent = "";
+    (r.toConfirm || []).forEach(function (q) { var li = document.createElement("li"); li.textContent = q; list.appendChild(li); });
+    $("rConfirm").hidden = !(r.toConfirm && r.toConfirm.length);
+    $("tbNo").textContent = reportNo(r.date);
+    $("tbDate").textContent = fmtDate(r.date);
+    var tag = $("repTag");
+    tag.textContent = r.example ? "Example" : "Your report";
+    tag.className = "tag " + (r.example ? "example" : "live");
+    $("repStatus").textContent = "";
+    updateStats();
+  }
+
+  function setNotes(n, example) {
+    $("fDate").value = n.date || today();
+    $("fTitle").value = n.title || "";
+    $("fTask").value = n.task || "";
+    $("fDone").value = n.done || "";
+    $("fNext").value = n.next || "";
+    var t = $("notesTag");
+    t.textContent = example ? "Example notes" : "Your notes";
+    t.className = "tag " + (example ? "example" : "live");
+    t.hidden = false;
+  }
+
+  /* ---- log ---- */
+  function loadLog() { try { var v = JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+  function saveLog(a) { try { localStorage.setItem(LOG_KEY, JSON.stringify(a.slice(0, 60))); return true; } catch (e) { return false; } }
+
+  function updateStats() {
+    var log = loadLog();
+    $("stSaved").textContent = log.length;
+    var cutoff = Date.now() - 7 * 864e5;
+    $("stWeek").textContent = log.filter(function (x) { return new Date(x.date + "T00:00:00").getTime() >= cutoff; }).length;
+    $("stOpen").textContent = current && !current.example && current.toConfirm ? current.toConfirm.length : 0;
+  }
+
+  function openEntry(x) {
+    if (!x) return;
+    setNotes(x.notes || {}, false);
+    showReport({ date: x.date, title: x.title, taskDetails: x.taskDetails, workProgress: x.workProgress, toConfirm: x.toConfirm || [], example: false });
+    isExample = false;
+    $("report").scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+
+  /* ---- glass folder: the saved reports, drawn as files in a folder ---- */
+  var SAGE_ART = { style: "marble", colors: ["#1f2b24", "#3d5645", "#7c9082", "#bfc9bb", "#e8e6e1", "#f8f7f4", "#ced4bf"], scale: 0.7, warp: 3, angle: 0.8, gloss: 0.4, veins: 0.3 };
+  function isDark() {
+    var t = document.documentElement.getAttribute("data-theme");
+    if (t) return t === "dark";
+    return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }
+  function mountFolder(log) {
+    var host = $("folderHost");
+    if (!host || !window.GlassFolderMount) return;
+    var w = Math.max(240, Math.min(340, host.clientWidth || 340));
+    var tone = isDark() ? "dark" : "light";
+    var files = log.slice().reverse().map(function (x) { return { name: x.title || "Untitled task", meta: fmtDate(x.date) }; });
+    host.style.height = Math.round((272 + 54) * w / 340) + "px";
+    try {
+      window.GlassFolderMount(host, {
+        label: "Daily Reports",
+        meta: log.length === 0 ? "No reports yet" : log.length + (log.length === 1 ? " report" : " reports"),
+        tone: tone, art: SAGE_ART, seed: 5, files: files, action: "more", width: w,
+        menu: [{ label: "Write a new report", onSelect: function () { $("form").scrollIntoView({ block: "start", behavior: "smooth" }); $("fTask").focus({ preventScroll: true }); } }],
+        onFileSelect: function (f, idx) { openEntry(log[log.length - 1 - idx]); }
+      }, tone + "|" + w + "|" + log.map(function (x) { return x.id; }).join(","));
+    } catch (e) {}
+  }
+  (function () {
+    var t = 0, redo = function () { clearTimeout(t); t = setTimeout(function () { mountFolder(loadLog()); }, 200); };
+    window.addEventListener("resize", redo);
+    try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redo); } catch (e) {}
+    try { new MutationObserver(redo).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] }); } catch (e) {}
+  })();
+
+  function renderLog() {
+    var ul = $("log"), log = loadLog();
+    ul.textContent = "";
+    if (!log.length) {
+      var li = document.createElement("li"); li.className = "empty"; li.style.display = "block";
+      li.textContent = "No saved reports yet. Rewrite your notes, then choose Save to log to keep a copy in this browser.";
+      ul.appendChild(li); updateStats(); mountFolder(log); return;
+    }
+    log.forEach(function (x, i) {
+      var li = document.createElement("li");
+      var d = document.createElement("span"); d.className = "d"; d.textContent = fmtDate(x.date);
+      var t = document.createElement("div"); t.className = "t";
+      t.appendChild(document.createTextNode(x.title || "Untitled task"));
+      var s = document.createElement("small"); s.textContent = reportNo(x.date); t.appendChild(s);
+      var ops = document.createElement("div"); ops.className = "ops";
+      var open = document.createElement("button"); open.type = "button"; open.className = "btn small"; open.textContent = "Open";
+      open.onclick = function () { openEntry(x); };
+      var del = document.createElement("button"); del.type = "button"; del.className = "btn small"; del.textContent = "Delete";
+      var armed = false;
+      del.onclick = function () {
+        if (!armed) { armed = true; del.textContent = "Confirm delete"; setTimeout(function () { armed = false; del.textContent = "Delete"; }, 3500); return; }
+        var cur = loadLog(); cur.splice(i, 1); saveLog(cur); renderLog();
+      };
+      ops.appendChild(open); ops.appendChild(del);
+      li.appendChild(d); li.appendChild(t); li.appendChild(ops); ul.appendChild(li);
+    });
+    updateStats();
+    mountFolder(log);
+  }
+
+  /* ---- prompt ---- */
+  function buildPrompt(n) {
+    return [
+      "You are rewriting an engineer's rough daily work notes into a formal daily work report for their manager.",
+      "",
+      "Use exactly two sections.",
+      "Task Details: describe the task assigned or planned. Explain the objective, purpose and scope. Include the parts, assemblies, systems, tools or software involved where the notes mention them. State what needs to be done, why, and the expected outcome.",
+      "Work Progress: describe the work actually performed and the progress against the task. Explain the activities step by step. Include CAD modelling, assembly, drawing preparation, testing, troubleshooting, inspection, analysis or team discussions only if the notes mention them. Include observations, measurements, modifications and issues found. State what is completed, what is pending and the next steps.",
+      "",
+      "Rules:",
+      "Write the way a careful human engineer would: natural, plain, professional English in complete sentences, with correct grammar, spelling and technical terminology. Correct any English mistakes in the notes. Keep a factual tone with no slang and no repetition.",
+      "Never use a hyphen, en dash or em dash anywhere in the output. Use commas, full stops or the word 'to' instead, and write compound words as separate words.",
+      "Do not invent activities, results, measurements, names, tools or specifications. Do not claim anything was completed unless the notes say it was performed.",
+      "Expand the explanation only as far as the notes support. If something a manager would need is missing, do not guess. Add a short question for it to toConfirm.",
+      "Describe the work in a neutral voice, for example: The housing was modelled.",
+      "",
+      "Reply with only a JSON object in this shape, with paragraphs inside a string separated by a blank line (\\n\\n) and no markdown:",
+      "{\"taskDetails\": \"...\", \"workProgress\": \"...\", \"toConfirm\": [\"short question\", \"...\"]}",
+      "toConfirm is an empty array when nothing important is missing.",
+      "",
+      "Date: " + fmtDate(n.date),
+      "Task name: " + (n.title || "(not given)"),
+      "Task assigned or planned (rough notes): " + n.task,
+      "What was actually done (rough notes): " + n.done,
+      "Pending or next steps (rough notes): " + (n.next || "(not given)")
+    ].join("\n");
+  }
+
+  function readNotes() {
+    return { date: $("fDate").value || today(), title: $("fTitle").value.trim(), task: $("fTask").value.trim(), done: $("fDone").value.trim(), next: $("fNext").value.trim() };
+  }
+
+  function say(msg, err) { var s = $("status"); s.textContent = msg; s.className = "status" + (err ? " err" : ""); }
+  function sayRep(msg) { $("repStatus").textContent = msg; }
+
+  function copyText(text, onOk, onFail) {
+    function fallback() {
+      var ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta); ok ? onOk() : onFail();
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(onOk, fallback);
+    } else { fallback(); }
+  }
+
+  var ERR = {
+    not_granted: "Claude access was not allowed for this page. Use Copy as prompt and paste it into a Claude chat instead.",
+    sampling_disabled: "Claude is not available for this account. Use Copy as prompt and paste it into a Claude chat instead.",
+    rate_limited: "Too many requests or your usage limit was reached. Try again in a few minutes.",
+    session_expired: "Your session expired. Sign in again, then try once more.",
+    invalid_json: "The reply could not be read as a report. Press Rewrite as report to try again.",
+    refused: "Claude declined this input. Check the notes and change the wording.",
+    prompt_too_large: "The notes are too long. Shorten them and try again."
+  };
+
+  var sampleFn = null;
+  (window.claude && window.claude.use ? window.claude.use("sample") : Promise.resolve(null))
+    .then(function (s) { sampleFn = s; if (!s) { $("bRewrite").title = "Rewriting needs Claude access in the viewer"; } })
+    .catch(function () { sampleFn = null; });
+
+  $("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var n = readNotes();
+    if (!n.task && !n.done) { say("Add at least one of the two notes first: the task, or what you did.", true); return; }
+    if (!sampleFn) { say("Rewriting needs Claude access, which this view does not offer. Use Copy as prompt and paste it into a Claude chat.", true); return; }
+    ctl = new AbortController();
+    $("bRewrite").disabled = true; $("bStop").hidden = false;
+    say("Writing the report...");
+    sampleFn.json(buildPrompt(n), { signal: ctl.signal, cache: false }).then(function (r) {
+      if (!r || typeof r.taskDetails !== "string" || typeof r.workProgress !== "string") throw { code: "invalid_json" };
+      isExample = false;
+      showReport({ date: n.date, title: n.title, taskDetails: clean(r.taskDetails), workProgress: clean(r.workProgress),
+        toConfirm: Array.isArray(r.toConfirm) ? r.toConfirm.map(clean).filter(Boolean) : [], example: false, notes: n });
+      setNotes(n, false);
+      say("Report ready. Review the wording, then copy or save it.");
+    }).catch(function (err) {
+      if (err && err.code === "cancelled") { say("Stopped."); return; }
+      say(ERR[err && err.code] || "The report could not be written. Press Rewrite as report to try again.", true);
+    }).then(function () {
+      $("bRewrite").disabled = false; $("bStop").hidden = true; ctl = null;
+    });
+  });
+
+  $("bStop").addEventListener("click", function () { if (ctl) ctl.abort(); });
+
+  $("bPrompt").addEventListener("click", function () {
+    var n = readNotes();
+    if (!n.task && !n.done) { say("Add your notes first, then copy the prompt.", true); return; }
+    copyText(buildPrompt(n), function () { say("Prompt copied. Paste it into a Claude chat to get the report."); },
+      function () { say("Copying was blocked in this view. Select the notes and copy them by hand.", true); });
+  });
+
+  $("bClear").addEventListener("click", function () {
+    setNotes({ date: today() }, false);
+    $("notesTag").hidden = true;
+    say("Notes cleared. Type your own, then press Rewrite as report.");
+    $("fTask").focus();
+  });
+
+  function reportAsText() {
+    return "Task Details:\n" + readText($("rTask")) + "\n\nWork Progress:\n" + readText($("rWork"));
+  }
+
+  $("bCopy").addEventListener("click", function () {
+    copyText(reportAsText(), function () { sayRep("Copied."); }, function () { sayRep("Copying was blocked. Select the text and copy it by hand."); });
+  });
+
+  $("bSave").addEventListener("click", function () {
+    if (!current || current.example) { sayRep("Rewrite your own notes first, then save."); return; }
+    var log = loadLog();
+    var entry = { id: Date.now(), date: current.date, title: current.title, taskDetails: readText($("rTask")), workProgress: readText($("rWork")),
+      toConfirm: current.toConfirm || [], notes: current.notes || readNotes() };
+    log.unshift(entry);
+    if (saveLog(log)) { sayRep("Saved."); renderLog(); } else { sayRep("This browser would not store it. Use Copy report instead."); }
+  });
+
+  $("fDate").addEventListener("change", function () {
+    var d = $("fDate").value; $("tbNo").textContent = reportNo(d); $("tbDate").textContent = fmtDate(d);
+  });
+
+  /* ---- start: example state ---- */
+  setNotes({ date: today(), title: EXAMPLE.title, task: EXAMPLE.task, done: EXAMPLE.done, next: EXAMPLE.next }, true);
+  showReport({ date: today(), title: EXAMPLE.title, taskDetails: EXAMPLE.taskDetails, workProgress: EXAMPLE.workProgress, toConfirm: EXAMPLE.toConfirm, example: true });
+  renderLog();
+})();
+</script>
