@@ -202,7 +202,7 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
         <div class="field">
           <label for="fDone">What work did you do?</label>
           <textarea id="fDone" placeholder="Write your rough work notes here. Add the actions, parts, results, measurements, and problems you want included."></textarea>
-          <span class="hint">Enter your work once. Task Details will become bullet points, and Work Progress will be a separate professional explanation. Include the details you want described.</span>
+          <span class="hint">Enter your work once. Add technical details such as CAD software, part names, dimensions, tolerances, clearances, fit checks, results, and issues when you know them.</span>
         </div>
         <div class="field" id="codeField" hidden>
           <label for="fCode">Access code</label>
@@ -270,9 +270,9 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
     task: "make cad of gearbox housing, cover and shaft support and assemble them to check the fit before drawings",
     done: "modelled housing, cover and shaft support. assembled all three. found interference between shaft and bearing seat. drawings not started",
     next: "fix the interference, then start drawings",
-    taskDetails: "The assigned task was to prepare the CAD models of the gearbox housing, the housing cover and the shaft support, and to assemble them in order to verify the fit between the mating parts. The objective was to confirm that the components fit together correctly before the detailed drawings are prepared.",
-    workProgress: "The gearbox housing, the housing cover and the shaft support were modelled, and the three parts were then brought together in an assembly. During the assembly check, an interference was identified between the shaft and the bearing seat.\n\nThe preparation of the drawings has not been started. The interference needs to be corrected, after which the drawing work can begin.",
-    toConfirm: ["Which feature or dimension causes the shaft and bearing seat interference, and by how much?", "Which CAD software was used for the modelling and assembly?"]
+    taskDetails: "• Model the gearbox housing, housing cover, and shaft support.\n\n• Assemble the three components.\n\n• Check the shaft and bearing seat interface for interference.",
+    workProgress: "CAD models were prepared for the gearbox housing, housing cover, and shaft support. The components were then brought together in an assembly to review the mating interfaces. The assembly revealed geometric interference between the shaft and bearing seat, indicating overlap at that interface. The shaft diameter, bearing seat bore, and specified fit or clearance should be reviewed before changing the CAD geometry. Drawing preparation has not started yet.",
+    toConfirm: ["What shaft diameter, bearing seat bore, fit tolerance, or required clearance applies at this interface?", "Which CAD software was used for the modelling and assembly?"]
   };
 
   var current = null;   // the report on screen
@@ -430,11 +430,11 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
       "Work Progress: write a separate, detailed, well-formed professional explanation in complete sentences and chronological paragraphs. Explain what was done, how the listed actions relate, and what results or issues came from them, using only information supported by the notes. Do not just repeat the bullet list. Mention pending work only when the notes say it is pending.",
       "",
       "Rules:",
-      "Write the way a careful human engineer would: natural, plain, professional English in complete sentences, with correct grammar, spelling and technical terminology. Correct any English mistakes in the notes. Keep a factual tone with no slang and no repetition.",
+      "Write like a careful engineer: use clear, professional English and correct the notes' grammar. Add relevant CAD and engineering terminology to explain the recorded work, such as component geometry, assembly interfaces, fits, clearances, tolerances, inspection, and test results when the notes support them.",
       "Never use a hyphen, en dash or em dash anywhere in the output. Use commas, full stops or the word 'to' instead, and write compound words as separate words.",
       "Do not invent activities, results, measurements, names, tools or specifications. Do not claim anything was completed unless the notes say it was performed.",
       "Expand the explanation only as far as the notes support. If something a manager would need is missing, do not guess. Add a short question for it to toConfirm.",
-      "Use the same single work-notes entry as the source for both sections. Keep Task Details as concise bullets and Work Progress as an expanded narrative. Never add facts, steps, tools, measurements, or outcomes that the notes do not support.",
+      "Use the same single work-notes entry as the source for both sections. Keep Task Details as concise bullets. Make Work Progress a distinct technical narrative that explains the sequence, engineering purpose, interfaces, findings, and outcome when the notes support those details. Never invent software, dimensions, tolerances, materials, test methods, or results. Ask focused technical questions in toConfirm when needed details are missing.",
       "Describe the work in a neutral voice, for example: The housing was modelled.",
       "",
       "Reply with only a JSON object in this shape. In taskDetails, put each bullet on its own line beginning with •. In workProgress, use paragraphs separated by a blank line (\\n\\n). Do not add markdown fences:",
@@ -493,11 +493,53 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
   }
 
   function localReport(n) {
-    var points = taskPoints(n.done);
+    var source = String(n.done || "");
+    var points = taskPoints(source);
     if (!points) points = "• Work items were not clear enough to list separately.";
-    var progressLines = String(n.done || "").replace(/\r\n?/g, "\n").split(/(?<=[.!?])\s+|\n+/).map(polishProgressLine).filter(Boolean);
-    var work = progressLines.join(" ") || "No completed work was included in the notes.";
-    return { taskDetails: points, workProgress: work, toConfirm: [] };
+
+    var progressLines = source.replace(/\r\n?/g, "\n").split(/(?<=[.!?])\s+|\n+/).map(polishProgressLine).filter(Boolean);
+    var modelled = source.match(/\b(?:modelled|modeled)\s+([^.;\n]+)/i);
+    var interference = source.match(/\binterference\s+between\s+(.+?)\s+and\s+([^.;\n]+)/i);
+    var assembly = /\bassembl(?:ed|y)\b/i.test(source);
+    var drawingsPending = /\bdrawings?\s+(?:not\s+started|not\s+begun|pending)\b/i.test(source);
+    var workParts = [];
+    var consumed = {};
+
+    if (modelled) {
+      workParts.push("CAD models were prepared for " + modelled[1].trim() + ".");
+      consumed.model = true;
+    }
+    if (assembly) {
+      workParts.push(modelled ? "The modelled components were then brought together in an assembly." : "The listed components were brought together in an assembly.");
+      consumed.assembly = true;
+    }
+    if (interference) {
+      var leftPart = interference[1].replace(/^the\s+/i, "");
+      var rightPart = interference[2].replace(/^the\s+/i, "");
+      var lead = assembly ? "The assembly review identified" : "The notes identify";
+      var review = /shaft/i.test(leftPart + " " + rightPart) && /bearing\s+seat/i.test(leftPart + " " + rightPart)
+        ? "Review the shaft diameter, bearing seat bore, and specified fit or clearance before adjusting the CAD geometry."
+        : "Review the mating dimensions and specified fit or clearance before adjusting the CAD geometry.";
+      workParts.push(lead + " geometric interference between the " + leftPart + " and the " + rightPart + ". This means the part geometry overlaps at the mating interface. " + review);
+      consumed.interference = true;
+    }
+    if (drawingsPending) {
+      workParts.push("Drawing preparation has not started yet.");
+      consumed.drawings = true;
+    }
+
+    var remaining = progressLines.filter(function (line) {
+      if (consumed.drawings && /drawing.*(?:not\s+started|not\s+begun|pending)/i.test(line)) return false;
+      if (consumed.interference && /interference\s+between/i.test(line)) return false;
+      if (consumed.assembly && /assembl/i.test(line)) return false;
+      if (consumed.model && /modelled|modeled/i.test(line)) return false;
+      return true;
+    });
+    if (!workParts.length) workParts = remaining;
+    else if (remaining.length) workParts = workParts.concat(remaining);
+    var work = workParts.join(" ") || "No completed work was included in the notes.";
+    var toConfirm = interference ? ["What dimensions, fit tolerance, or required clearance apply at the " + interference[1].trim() + " and " + interference[2].trim() + " interface?"] : [];
+    return { taskDetails: points, workProgress: work, toConfirm: toConfirm };
   }
 
   function readNotes() {
