@@ -200,18 +200,9 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
           <div class="field"><label for="fTitle">Task name (optional)</label><input type="text" id="fTitle" autocomplete="off"></div>
         </div>
         <div class="field">
-          <label for="fTask">Task Details</label>
-          <textarea id="fTask"></textarea>
-          <span class="hint">List the assigned work one point per line. These points appear under Task Details.</span>
-        </div>
-        <div class="field">
-          <label for="fDone">Work Progress</label>
-          <textarea id="fDone"></textarea>
-          <span class="hint">Describe only what you completed. Work Progress will be written as clear sentences, with issues and results kept here.</span>
-        </div>
-        <div class="field">
-          <label for="fNext">Pending or next steps (optional)</label>
-          <textarea id="fNext" style="min-height:70px"></textarea>
+          <label for="fDone">What work did you do?</label>
+          <textarea id="fDone" placeholder="Write your rough work notes here. Add the actions, parts, results, measurements, and problems you want included."></textarea>
+          <span class="hint">Enter your work once. Task Details will become bullet points, and Work Progress will be a separate professional explanation. Include the details you want described.</span>
         </div>
         <div class="field" id="codeField" hidden>
           <label for="fCode">Access code</label>
@@ -224,7 +215,7 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
           <button class="btn" type="button" id="bPrompt">Copy as prompt</button>
           <button class="btn" type="button" id="bClear">Clear notes</button>
         </div>
-        <span class="hint" id="rewriteHelp">Creates a clear report in this browser. Use Copy as prompt when you want an AI rewrite.</span>
+        <span class="hint" id="rewriteHelp">Your report is editable. Add enough detail to your notes for a complete progress explanation.</span>
         <div class="status" id="status" role="status" aria-live="polite"></div>
       </form>
     </section>
@@ -341,9 +332,7 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
   function setNotes(n, example) {
     $("fDate").value = n.date || today();
     $("fTitle").value = n.title || "";
-    $("fTask").value = n.task || "";
-    $("fDone").value = n.done || "";
-    $("fNext").value = n.next || "";
+    $("fDone").value = n.done || n.work || n.workProgress || n.task || "";
     var t = $("notesTag");
     t.textContent = example ? "Example notes" : "Your notes";
     t.className = "tag " + (example ? "example" : "live");
@@ -389,7 +378,7 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
         label: "Daily Reports",
         meta: log.length === 0 ? "No reports yet" : log.length + (log.length === 1 ? " report" : " reports"),
         tone: tone, art: SAGE_ART, seed: 5, files: files, action: "more", width: w,
-        menu: [{ label: "Write a new report", onSelect: function () { $("form").scrollIntoView({ block: "start", behavior: "smooth" }); $("fTask").focus({ preventScroll: true }); } }],
+        menu: [{ label: "Write a new report", onSelect: function () { $("form").scrollIntoView({ block: "start", behavior: "smooth" }); $("fDone").focus({ preventScroll: true }); } }],
         onFileSelect: function (f, idx) { openEntry(log[log.length - 1 - idx]); }
       }, tone + "|" + w + "|" + log.map(function (x) { return x.id; }).join(","));
     } catch (e) {}
@@ -406,7 +395,7 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
     ul.textContent = "";
     if (!log.length) {
       var li = document.createElement("li"); li.className = "empty"; li.style.display = "block";
-      li.textContent = "No saved reports yet. Rewrite your notes, then choose Save to log to keep a copy in this browser.";
+      li.textContent = "No saved reports yet. Create a report from your work notes, then choose Save to log to keep a copy in this browser.";
       ul.appendChild(li); updateStats(); mountFolder(log); return;
     }
     log.forEach(function (x, i) {
@@ -434,18 +423,18 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
   /* ---- prompt ---- */
   function buildPrompt(n) {
     return [
-      "You are rewriting an engineer's rough daily work notes into a formal daily work report for their manager.",
+      "You are turning an engineer's rough notes about work already completed into a formal daily work report for their manager.",
       "",
       "Use exactly two sections.",
-      "Task Details: write the assigned or planned work as a concise point-by-point list. Put each distinct objective, deliverable, or planned action on its own bullet. Use only information from the task notes. Do not put completed results in this section.",
-      "Work Progress: write a separate, well-formed professional report in complete sentences and chronological paragraphs. Describe only work actually completed, including results, issues, and measurements that the notes provide. Do not repeat the task list. Put unfinished work and future actions in a final Next steps paragraph.",
+      "Task Details: derive a concise point-by-point list of the main work items from the user's work notes. Put each distinct action or deliverable on its own bullet. Do not invent an assignment or planned work that was not supplied.",
+      "Work Progress: write a separate, detailed, well-formed professional explanation in complete sentences and chronological paragraphs. Explain what was done, how the listed actions relate, and what results or issues came from them, using only information supported by the notes. Do not just repeat the bullet list. Mention pending work only when the notes say it is pending.",
       "",
       "Rules:",
       "Write the way a careful human engineer would: natural, plain, professional English in complete sentences, with correct grammar, spelling and technical terminology. Correct any English mistakes in the notes. Keep a factual tone with no slang and no repetition.",
       "Never use a hyphen, en dash or em dash anywhere in the output. Use commas, full stops or the word 'to' instead, and write compound words as separate words.",
       "Do not invent activities, results, measurements, names, tools or specifications. Do not claim anything was completed unless the notes say it was performed.",
       "Expand the explanation only as far as the notes support. If something a manager would need is missing, do not guess. Add a short question for it to toConfirm.",
-      "Keep Task Details and Work Progress distinct. The first is a list of planned work. The second is a clear account of completed work and its outcome.",
+      "Use the same single work-notes entry as the source for both sections. Keep Task Details as concise bullets and Work Progress as an expanded narrative. Never add facts, steps, tools, measurements, or outcomes that the notes do not support.",
       "Describe the work in a neutral voice, for example: The housing was modelled.",
       "",
       "Reply with only a JSON object in this shape. In taskDetails, put each bullet on its own line beginning with •. In workProgress, use paragraphs separated by a blank line (\\n\\n). Do not add markdown fences:",
@@ -454,9 +443,7 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
       "",
       "Date: " + fmtDate(n.date),
       "Task name: " + (n.title || "(not given)"),
-      "Task assigned or planned (rough notes): " + n.task,
-      "What was actually done (rough notes): " + n.done,
-      "Pending or next steps (rough notes): " + (n.next || "(not given)")
+      "Work completed (rough notes): " + n.done
     ].join("\n");
   }
 
@@ -477,7 +464,9 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
       line = line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim();
       if (!line) return all;
       return all.concat(line.split(clauseBreak));
-    }, []).map(function (point) {
+    }, []).filter(function (point) {
+      return !/^\s*(?:drawings?|work)\s+(?:not\s+started|not\s+begun|pending)\b/i.test(point);
+    }).map(function (point) {
       point = point.trim().replace(/^to\s+/i, "");
       if (/^make\s+cad\s+of\b/i.test(point)) point = point.replace(/^make\s+cad\s+of/i, "Create CAD models of");
       point = polishNotes(point);
@@ -504,23 +493,15 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
   }
 
   function localReport(n) {
-    var sourceTask = n.task || n.title;
-    var points = taskPoints(sourceTask);
-    if (!points && n.title) points = taskPoints("Assigned task: " + n.title);
-    if (!points) points = "• Task details were not included in the notes.";
+    var points = taskPoints(n.done);
+    if (!points) points = "• Work items were not clear enough to list separately.";
     var progressLines = String(n.done || "").replace(/\r\n?/g, "\n").split(/(?<=[.!?])\s+|\n+/).map(polishProgressLine).filter(Boolean);
-    var work = progressLines.join("\n\n") || "No completed work was included in the notes.";
-    if (n.next) {
-      var next = polishNotes(n.next);
-      var repair = n.next.match(/^\s*fix\s+(.+?)(?:,\s*then\s+start\s+(.+))?\s*$/i);
-      if (repair) next = "Resolve " + repair[1] + (repair[2] ? ", then begin work on " + repair[2] : "") + ".";
-      work += "\n\nNext steps: " + next;
-    }
+    var work = progressLines.join(" ") || "No completed work was included in the notes.";
     return { taskDetails: points, workProgress: work, toConfirm: [] };
   }
 
   function readNotes() {
-    return { date: $("fDate").value || today(), title: $("fTitle").value.trim(), task: $("fTask").value.trim(), done: $("fDone").value.trim(), next: $("fNext").value.trim() };
+    return { date: $("fDate").value || today(), title: $("fTitle").value.trim(), task: "", done: $("fDone").value.trim(), next: "" };
   }
 
   function say(msg, err) { var s = $("status"); s.textContent = msg; s.className = "status" + (err ? " err" : ""); }
@@ -591,7 +572,7 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
   $("form").addEventListener("submit", function (e) {
     e.preventDefault();
     var n = readNotes();
-    if (!n.task && !n.done) { say("Add at least one of the two notes first: the task, or what you did.", true); return; }
+    if (!n.done) { say("Enter the work you did before creating a report.", true); return; }
     if (!sampleFn && WORKER_URL && !$("fCode").value.trim()) { say("Enter your access code first.", true); $("fCode").focus(); return; }
     ctl = new AbortController();
     var usedLocal = !sampleFn && !WORKER_URL;
@@ -621,7 +602,7 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
 
   $("bPrompt").addEventListener("click", function () {
     var n = readNotes();
-    if (!n.task && !n.done) { say("Add your notes first, then copy the prompt.", true); return; }
+    if (!n.done) { say("Enter the work you did first, then copy the prompt.", true); return; }
     copyText(buildPrompt(n), function () { say("Prompt copied. Paste it into your preferred AI chat to get a full rewrite."); },
       function () { say("Copying was blocked in this view. Select the notes and copy them by hand.", true); });
   });
@@ -630,7 +611,7 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
     setNotes({ date: today() }, false);
     $("notesTag").hidden = true;
     say("Notes cleared. Type your own, then choose Create report.");
-    $("fTask").focus();
+    $("fDone").focus();
   });
 
   function reportAsText() {
@@ -655,7 +636,7 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
   });
 
   /* ---- start: example state ---- */
-  setNotes({ date: today(), title: EXAMPLE.title, task: EXAMPLE.task, done: EXAMPLE.done, next: EXAMPLE.next }, true);
+  setNotes({ date: today(), title: EXAMPLE.title, done: EXAMPLE.done }, true);
   showReport({ date: today(), title: EXAMPLE.title, taskDetails: EXAMPLE.taskDetails, workProgress: EXAMPLE.workProgress, toConfirm: EXAMPLE.toConfirm, example: true });
   renderLog();
 })();
