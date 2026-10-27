@@ -6,14 +6,15 @@ A lightweight, mobile-friendly page for turning rough daily notes into a clear w
 
 1. Open [Daily Work Report Desk](https://dhananjay-cad.github.io/Daily_Work_Documentation/).
 2. Edit the date and task name if needed.
-3. Add the assigned task, the work you completed, and any next steps.
-4. Choose **Create report**, review the result, then copy or save it.
+3. In **Task Details**, enter the assigned work as one point per line.
+4. In **Work Progress**, enter only work you actually completed. Put unfinished work in **Pending or next steps**.
+5. Choose **Create report**, review the two distinct sections, then copy or save it.
 
 Reports and saved history stay in this browser. They are not synced to GitHub or another device.
 
 ## How report creation works
 
-GitHub Pages is a static website and does not provide Claude access. **Create report** therefore formats your notes directly in the browser, without an AI service or network request. It corrects spacing and sentence capitalization while keeping your wording and facts. It does not invent missing details or provide a full AI rewrite.
+GitHub Pages is a static website and does not provide Claude access. **Create report** therefore formats your notes directly in the browser, without an AI service or network request. It turns Task Details into a point-by-point list and formats Work Progress separately as clear sentences. It corrects spacing and capitalization while keeping your wording and facts. It does not invent missing details or provide a full AI rewrite.
 
 For an AI rewrite, choose **Copy as prompt** and paste the prompt into your preferred AI chat. The app only sends notes to an AI service when an AI connection is configured or provided by the current viewer.
 
