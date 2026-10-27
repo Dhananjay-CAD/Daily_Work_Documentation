@@ -1,3 +1,9 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Daily Work Report Desk</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -81,7 +87,7 @@ body {
 .field { display: grid; gap: 6px; min-width: 0; }
 .field label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; color: var(--ink-soft); }
 .field .hint { font-size: 12.5px; color: var(--ink-soft); }
-input[type="text"], input[type="date"], textarea {
+input[type="text"], input[type="password"], input[type="date"], textarea {
   width: 100%; min-width: 0; font: inherit; color: var(--ink); background: var(--surface);
   border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 11px;
 }
@@ -158,7 +164,8 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
   .btn { transition: background 0.15s, filter 0.15s; }
 }
 </style>
-
+</head>
+<body>
 <main class="sheet">
   <header class="titleblock">
     <div>
@@ -204,12 +211,18 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
           <label for="fNext">Pending or next steps (optional)</label>
           <textarea id="fNext" style="min-height:70px"></textarea>
         </div>
+        <div class="field" id="codeField" hidden>
+          <label for="fCode">Access code</label>
+          <input type="password" id="fCode" autocomplete="off">
+          <span class="hint">The code you set when you created the rewrite function. It is saved in this browser only.</span>
+        </div>
         <div class="actions">
-          <button class="btn primary" type="submit" id="bRewrite">Rewrite as report</button>
+          <button class="btn primary" type="submit" id="bRewrite">Create report</button>
           <button class="btn" type="button" id="bStop" hidden>Stop</button>
           <button class="btn" type="button" id="bPrompt">Copy as prompt</button>
           <button class="btn" type="button" id="bClear">Clear notes</button>
         </div>
+        <span class="hint" id="rewriteHelp">Creates a clear report in this browser. Use Copy as prompt when you want an AI rewrite.</span>
         <div class="status" id="status" role="status" aria-live="polite"></div>
       </form>
     </section>
@@ -252,6 +265,7 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
   </section>
 </main>
 
+<script src="config.js"></script>
 <script src="gf.js"></script>
 <script>
 (function () {
@@ -435,6 +449,26 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
     ].join("\n");
   }
 
+  function polishNotes(text) {
+    return String(text || "").replace(/\r\n?/g, "\n").split(/\n+/).map(function (line) {
+      var value = line.trim().replace(/[ \t]+/g, " ").replace(/\s+([,.;!?])/g, "$1");
+      if (!value) return "";
+      value = value.replace(/(^|[.!?]\s+)([a-z])/g, function (_, gap, letter) { return gap + letter.toUpperCase(); });
+      if (!/[.!?]$/.test(value)) value += ".";
+      return value;
+    }).filter(Boolean).join("\n\n");
+  }
+
+  function localReport(n) {
+    var task = polishNotes(n.task);
+    if (!task && n.title) task = "The assigned task was: " + polishNotes(n.title);
+    if (!task) task = "Task details were not included in the notes.";
+    var work = polishNotes(n.done);
+    if (!work) work = "Work progress was not included in the notes.";
+    if (n.next) work += "\n\nNext steps: " + polishNotes(n.next);
+    return { taskDetails: task, workProgress: work, toConfirm: [] };
+  }
+
   function readNotes() {
     return { date: $("fDate").value || today(), title: $("fTitle").value.trim(), task: $("fTask").value.trim(), done: $("fDone").value.trim(), next: $("fNext").value.trim() };
   }
@@ -455,38 +489,76 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
   }
 
   var ERR = {
-    not_granted: "Claude access was not allowed for this page. Use Copy as prompt and paste it into a Claude chat instead.",
-    sampling_disabled: "Claude is not available for this account. Use Copy as prompt and paste it into a Claude chat instead.",
+    not_granted: "AI rewriting is not available here. Your report was not sent anywhere. Use Copy as prompt for an AI rewrite.",
+    sampling_disabled: "AI rewriting is not available in this view. Your report was not sent anywhere. Use Copy as prompt for an AI rewrite.",
     rate_limited: "Too many requests or your usage limit was reached. Try again in a few minutes.",
     session_expired: "Your session expired. Sign in again, then try once more.",
-    invalid_json: "The reply could not be read as a report. Press Rewrite as report to try again.",
-    refused: "Claude declined this input. Check the notes and change the wording.",
-    prompt_too_large: "The notes are too long. Shorten them and try again."
+    invalid_json: "The reply could not be read as a report. Choose Create report to try again.",
+    refused: "The AI service declined this input. Check the notes and try again.",
+    prompt_too_large: "The notes are too long. Shorten them and try again.",
+    bad_code: "The access code is wrong. Check it in the Access code box and try again.",
+    origin: "The rewrite function does not allow this website address. Check ALLOWED_ORIGIN in Cloudflare.",
+    network: "The rewrite function could not be reached. Check the address in config.js and your connection."
   };
+
+  /* Outside Claude, rewriting goes through your own Cloudflare function (see config.js). */
+  var WORKER_URL = String((window.DWR_CONFIG && window.DWR_CONFIG.workerUrl) || "");
+  var CODE_KEY = "dwr-code";
+  function askRemote(prompt, signal) {
+    var code = $("fCode").value.trim();
+    try { localStorage.setItem(CODE_KEY, code); } catch (e) {}
+    return fetch(WORKER_URL, {
+      method: "POST", signal: signal,
+      headers: { "Content-Type": "application/json", "X-Access-Code": code },
+      body: JSON.stringify({ prompt: prompt })
+    }).catch(function (e) {
+      if (e && e.name === "AbortError") throw { code: "cancelled" };
+      throw { code: "network" };
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) throw { code: (j && j.error) || "upstream_error" };
+        var t = String((j && j.text) || ""), a = t.indexOf("{"), b = t.lastIndexOf("}");
+        if (a < 0 || b < a) throw { code: "invalid_json" };
+        try { return JSON.parse(t.slice(a, b + 1)); } catch (e) { throw { code: "invalid_json" }; }
+      });
+    });
+  }
 
   var sampleFn = null;
   (window.claude && window.claude.use ? window.claude.use("sample") : Promise.resolve(null))
-    .then(function (s) { sampleFn = s; if (!s) { $("bRewrite").title = "Rewriting needs Claude access in the viewer"; } })
+    .then(function (s) {
+      sampleFn = s;
+      if (!s && WORKER_URL) {
+        $("codeField").hidden = false;
+        $("rewriteHelp").textContent = "AI rewriting is enabled through your secure rewrite function. Your access code stays in this browser.";
+        try { $("fCode").value = localStorage.getItem(CODE_KEY) || ""; } catch (e) {}
+      } else if (s) {
+        $("rewriteHelp").textContent = "AI rewriting is available in this view. Your notes are sent to the AI service when you create a report.";
+      }
+    })
     .catch(function () { sampleFn = null; });
 
   $("form").addEventListener("submit", function (e) {
     e.preventDefault();
     var n = readNotes();
     if (!n.task && !n.done) { say("Add at least one of the two notes first: the task, or what you did.", true); return; }
-    if (!sampleFn) { say("Rewriting needs Claude access, which this view does not offer. Use Copy as prompt and paste it into a Claude chat.", true); return; }
+    if (!sampleFn && WORKER_URL && !$("fCode").value.trim()) { say("Enter your access code first.", true); $("fCode").focus(); return; }
     ctl = new AbortController();
+    var usedLocal = !sampleFn && !WORKER_URL;
     $("bRewrite").disabled = true; $("bStop").hidden = false;
-    say("Writing the report...");
-    sampleFn.json(buildPrompt(n), { signal: ctl.signal, cache: false }).then(function (r) {
+    say("Creating your report...");
+    var rewrite = sampleFn ? sampleFn.json(buildPrompt(n), { signal: ctl.signal, cache: false })
+      : (WORKER_URL ? askRemote(buildPrompt(n), ctl.signal) : Promise.resolve(localReport(n)));
+    rewrite.then(function (r) {
       if (!r || typeof r.taskDetails !== "string" || typeof r.workProgress !== "string") throw { code: "invalid_json" };
       isExample = false;
       showReport({ date: n.date, title: n.title, taskDetails: clean(r.taskDetails), workProgress: clean(r.workProgress),
         toConfirm: Array.isArray(r.toConfirm) ? r.toConfirm.map(clean).filter(Boolean) : [], example: false, notes: n });
       setNotes(n, false);
-      say("Report ready. Review the wording, then copy or save it.");
+      say(usedLocal ? "Report formatted in this browser. For an AI rewrite, choose Copy as prompt." : "Report ready. Review the wording, then copy or save it.");
     }).catch(function (err) {
       if (err && err.code === "cancelled") { say("Stopped."); return; }
-      say(ERR[err && err.code] || "The report could not be written. Press Rewrite as report to try again.", true);
+      say(ERR[err && err.code] || "The report could not be created. Choose Create report to try again.", true);
     }).then(function () {
       $("bRewrite").disabled = false; $("bStop").hidden = true; ctl = null;
     });
@@ -497,14 +569,14 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
   $("bPrompt").addEventListener("click", function () {
     var n = readNotes();
     if (!n.task && !n.done) { say("Add your notes first, then copy the prompt.", true); return; }
-    copyText(buildPrompt(n), function () { say("Prompt copied. Paste it into a Claude chat to get the report."); },
+    copyText(buildPrompt(n), function () { say("Prompt copied. Paste it into your preferred AI chat to get a full rewrite."); },
       function () { say("Copying was blocked in this view. Select the notes and copy them by hand.", true); });
   });
 
   $("bClear").addEventListener("click", function () {
     setNotes({ date: today() }, false);
     $("notesTag").hidden = true;
-    say("Notes cleared. Type your own, then press Rewrite as report.");
+    say("Notes cleared. Type your own, then choose Create report.");
     $("fTask").focus();
   });
 
@@ -535,3 +607,6 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
   renderLog();
 })();
 </script>
+</body>
+</html>
+
